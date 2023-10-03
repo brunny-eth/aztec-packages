@@ -3,10 +3,10 @@
 #include "call_stack_item.hpp"
 #include "function_data.hpp"
 #include "function_leaf_preimage.hpp"
-#include "kernel_circuit_public_inputs.hpp"
-#include "kernel_circuit_public_inputs_final.hpp"
 #include "previous_kernel_data.hpp"
 #include "private_circuit_public_inputs.hpp"
+#include "private_kernel_public_inputs.hpp"
+#include "private_kernel_public_inputs_final.hpp"
 #include "tx_context.hpp"
 #include "tx_request.hpp"
 #include "private_kernel/private_kernel_inputs_inner.hpp"
@@ -556,13 +556,13 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_private_kernel_inputs_ini
 WASM_EXPORT const char* abis__test_roundtrip_serialize_kernel_circuit_public_inputs(uint8_t const* input,
                                                                                     uint32_t* size)
 {
-    return as_string_output<aztec3::circuits::abis::KernelCircuitPublicInputs<NT>>(input, size);
+    return as_string_output<aztec3::circuits::abis::PrivateKernelPublicInputs<NT>>(input, size);
 }
 
 WASM_EXPORT const char* abis__test_roundtrip_serialize_kernel_circuit_public_inputs_final(uint8_t const* input,
                                                                                           uint32_t* size)
 {
-    return as_string_output<aztec3::circuits::abis::KernelCircuitPublicInputsFinal<NT>>(input, size);
+    return as_string_output<aztec3::circuits::abis::PrivateKernelPublicInputsFinal<NT>>(input, size);
 }
 
 WASM_EXPORT const char* abis__test_roundtrip_serialize_public_kernel_inputs(uint8_t const* input, uint32_t* size)

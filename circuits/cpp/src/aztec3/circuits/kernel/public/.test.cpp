@@ -8,6 +8,7 @@
 #include "aztec3/circuits/abis/combined_constant_data.hpp"
 #include "aztec3/circuits/abis/contract_storage_update_request.hpp"
 #include "aztec3/circuits/abis/previous_kernel_data.hpp"
+#include "aztec3/circuits/abis/private_kernel_public_inputs.hpp"
 #include "aztec3/circuits/abis/public_kernel/public_call_data.hpp"
 #include "aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp"
 #include "aztec3/circuits/abis/tx_context.hpp"
@@ -36,6 +37,7 @@ using aztec3::circuits::abis::HistoricBlockData;
 using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::OptionallyRevealedData;
 using aztec3::circuits::abis::PreviousKernelData;
+using aztec3::circuits::abis::PrivateKernelPublicInputs;
 using aztec3::circuits::abis::PublicCircuitPublicInputs;
 using aztec3::circuits::abis::PublicDataRead;
 using aztec3::circuits::abis::PublicTypes;
@@ -413,7 +415,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         .public_data_reads = std::array<PublicDataRead<NT>, MAX_PUBLIC_DATA_READS_PER_TX>()
     };
 
-    const KernelCircuitPublicInputs<NT> public_inputs = {
+    const PrivateKernelPublicInputs<NT> public_inputs = {
         .end = end_accumulated_data,
         .constants = end_constants,
         .is_private = private_previous,
@@ -433,7 +435,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
 
 template <typename KernelInput>
 void validate_public_kernel_outputs_correctly_propagated(const KernelInput& inputs,
-                                                         const KernelCircuitPublicInputs<NT>& public_inputs)
+                                                         const PublicKernelPublicInputs<NT>& public_inputs)
 {
     for (size_t i = 0; i < MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL; i++) {
         ASSERT_EQ(public_inputs.end.public_call_stack[i],
@@ -466,7 +468,7 @@ void validate_public_kernel_outputs_correctly_propagated(const KernelInput& inpu
 
 void validate_private_data_propagation(DummyBuilder& builder,
                                        const PublicKernelInputs<NT>& inputs,
-                                       const KernelCircuitPublicInputs<NT>& public_inputs)
+                                       const PublicKernelPublicInputs<NT>& public_inputs)
 {
     ASSERT_TRUE(source_arrays_are_in_target(builder,
                                             inputs.previous_kernel.public_inputs.end.private_call_stack,

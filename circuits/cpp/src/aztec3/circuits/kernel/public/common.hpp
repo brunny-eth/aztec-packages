@@ -2,9 +2,9 @@
 
 #include "init.hpp"
 
-#include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/public_data_update_request.hpp"
 #include "aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp"
+#include "aztec3/circuits/abis/public_kernel_public_inputs.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/utils/array.hpp"
 #include "aztec3/utils/dummy_circuit_builder.hpp"
@@ -12,9 +12,9 @@
 namespace aztec3::circuits::kernel::public_kernel {
 
 using NT = aztec3::utils::types::NativeTypes;
-using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::PublicDataRead;
 using aztec3::circuits::abis::PublicDataUpdateRequest;
+using aztec3::circuits::abis::PublicKernelPublicInputs;
 using aztec3::circuits::abis::public_kernel::PublicKernelInputs;
 using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
 using aztec3::utils::array_length;
@@ -223,7 +223,7 @@ void perform_static_call_checks(Builder& builder, KernelInput const& public_kern
 template <typename KernelInput, typename Builder>
 void propagate_valid_public_data_update_requests(Builder& builder,
                                                  KernelInput const& public_kernel_inputs,
-                                                 KernelCircuitPublicInputs<NT>& circuit_outputs)
+                                                 PublicKernelPublicInputs<NT>& circuit_outputs)
 {
     const auto& contract_address = public_kernel_inputs.public_call.call_stack_item.contract_address;
     const auto& update_requests =
@@ -255,7 +255,7 @@ void propagate_valid_public_data_update_requests(Builder& builder,
 template <typename KernelInput, typename Builder>
 void propagate_valid_public_data_reads(Builder& builder,
                                        KernelInput const& public_kernel_inputs,
-                                       KernelCircuitPublicInputs<NT>& circuit_outputs)
+                                       PublicKernelPublicInputs<NT>& circuit_outputs)
 {
     const auto& contract_address = public_kernel_inputs.public_call.call_stack_item.contract_address;
     const auto& reads = public_kernel_inputs.public_call.call_stack_item.public_inputs.contract_storage_reads;
@@ -286,7 +286,7 @@ void propagate_valid_public_data_reads(Builder& builder,
 template <typename KernelInput, typename Builder>
 void propagate_new_commitments(Builder& builder,
                                KernelInput const& public_kernel_inputs,
-                               KernelCircuitPublicInputs<NT>& circuit_outputs)
+                               PublicKernelPublicInputs<NT>& circuit_outputs)
 {
     // Get the new commitments
     const auto& public_call_public_inputs = public_kernel_inputs.public_call.call_stack_item.public_inputs;
@@ -318,7 +318,7 @@ void propagate_new_commitments(Builder& builder,
 template <typename KernelInput, typename Builder>
 void propagate_new_nullifiers(Builder& builder,
                               KernelInput const& public_kernel_inputs,
-                              KernelCircuitPublicInputs<NT>& circuit_outputs)
+                              PublicKernelPublicInputs<NT>& circuit_outputs)
 {
     // Get the new commitments
     const auto& public_call_public_inputs = public_kernel_inputs.public_call.call_stack_item.public_inputs;
@@ -349,7 +349,7 @@ void propagate_new_nullifiers(Builder& builder,
 template <typename KernelInput, typename Builder>
 void propagate_new_l2_to_l1_messages(Builder& builder,
                                      KernelInput const& public_kernel_inputs,
-                                     KernelCircuitPublicInputs<NT>& circuit_outputs)
+                                     PublicKernelPublicInputs<NT>& circuit_outputs)
 {
     // Get the new l2 messages
     const auto& public_call_public_inputs = public_kernel_inputs.public_call.call_stack_item.public_inputs;
@@ -385,7 +385,7 @@ void propagate_new_l2_to_l1_messages(Builder& builder,
  * @note Used by public kernels which had previous iterations.
  */
 template <typename NT> void accumulate_unencrypted_logs(PublicKernelInputs<NT> const& public_kernel_inputs,
-                                                        KernelCircuitPublicInputs<NT>& circuit_outputs)
+                                                        PublicKernelPublicInputs<NT>& circuit_outputs)
 {
     const auto public_call_public_inputs = public_kernel_inputs.public_call.call_stack_item.public_inputs;
 
@@ -414,7 +414,7 @@ template <typename NT> void accumulate_unencrypted_logs(PublicKernelInputs<NT> c
 template <typename KernelInput, typename Builder>
 void common_update_public_end_values(Builder& builder,
                                      KernelInput const& public_kernel_inputs,
-                                     KernelCircuitPublicInputs<NT>& circuit_outputs)
+                                     PublicKernelPublicInputs<NT>& circuit_outputs)
 {
     // Updates the circuit outputs with new state changes, call stack etc
     circuit_outputs.is_private = false;
@@ -445,7 +445,7 @@ void common_update_public_end_values(Builder& builder,
  * @param circuit_outputs The circuit outputs to be initialised
  */
 void common_initialise_end_values(PublicKernelInputs<NT> const& public_kernel_inputs,
-                                  KernelCircuitPublicInputs<NT>& circuit_outputs);
+                                  PublicKernelPublicInputs<NT>& circuit_outputs);
 
 /**
  * @brief Validates that the call stack item for this circuit iteration is at the top of the call stack
@@ -455,5 +455,5 @@ void common_initialise_end_values(PublicKernelInputs<NT> const& public_kernel_in
  */
 void validate_this_public_call_hash(DummyBuilder& builder,
                                     PublicKernelInputs<NT> const& public_kernel_inputs,
-                                    KernelCircuitPublicInputs<NT>& public_inputs);
+                                    PublicKernelPublicInputs<NT>& public_inputs);
 }  // namespace aztec3::circuits::kernel::public_kernel

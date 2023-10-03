@@ -1,5 +1,5 @@
 #pragma once
-#include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
+#include "aztec3/circuits/abis/private_kernel_public_inputs.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
 #include "aztec3/utils/types/native_types.hpp"
@@ -19,7 +19,7 @@ template <typename NCT> struct PreviousKernelData {
     using VK = typename NCT::VK;
     using uint32 = typename NCT::uint32;
 
-    KernelCircuitPublicInputs<NCT> public_inputs{};  // TODO: not needed as already contained in proof?
+    PrivateKernelPublicInputs<NCT> public_inputs{};  // TODO: not needed as already contained in proof?
     NativeTypes::Proof proof{};  // TODO: how to express proof as native/circuit type when it gets used as a buffer?
     std::shared_ptr<VK> vk;
 
