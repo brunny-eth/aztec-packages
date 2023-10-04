@@ -116,6 +116,7 @@ SchnorrAccountContractAbi
 SchnorrHardcodedAccountContractAbi
 SchnorrSingleKeyAccountContractAbi
 StatefulTestContractAbi
+TestAssertContractAbi
 TestContractAbi
 TokenBridgeContractAbi
 TokenContractAbi
