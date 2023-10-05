@@ -7,10 +7,10 @@
 #include "aztec3/circuits/abis/combined_accumulated_data.hpp"
 #include "aztec3/circuits/abis/combined_constant_data.hpp"
 #include "aztec3/circuits/abis/contract_storage_update_request.hpp"
-#include "aztec3/circuits/abis/previous_kernel_data.hpp"
+#include "aztec3/circuits/abis/previous_private_kernel_data.hpp"
 #include "aztec3/circuits/abis/private_kernel_public_inputs.hpp"
 #include "aztec3/circuits/abis/public_kernel/public_call_data.hpp"
-#include "aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp"
+#include "aztec3/circuits/abis/public_kernel/public_kernel_inputs_init.hpp"
 #include "aztec3/circuits/abis/tx_context.hpp"
 #include "aztec3/circuits/abis/tx_request.hpp"
 #include "aztec3/circuits/abis/types.hpp"
@@ -25,7 +25,7 @@
 
 namespace aztec3::circuits::kernel::public_kernel {
 using DummyCircuitBuilder = aztec3::utils::DummyCircuitBuilder;
-using aztec3::circuits::abis::public_kernel::PublicKernelInputs;
+using aztec3::circuits::abis::public_kernel::PublicKernelInputsInit;
 using NT = aztec3::utils::types::NativeTypes;
 using aztec3::circuits::abis::CallContext;
 using aztec3::circuits::abis::CallStackItem;
@@ -36,7 +36,8 @@ using aztec3::circuits::abis::ContractStorageUpdateRequest;
 using aztec3::circuits::abis::HistoricBlockData;
 using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::OptionallyRevealedData;
-using aztec3::circuits::abis::PreviousKernelData;
+using aztec3::circuits::abis::PreviousPrivateKernelData;
+using aztec3::circuits::abis::PreviousPublicKernelData;
 using aztec3::circuits::abis::PrivateKernelPublicInputs;
 using aztec3::circuits::abis::PublicCircuitPublicInputs;
 using aztec3::circuits::abis::PublicDataRead;
@@ -70,7 +71,7 @@ generate_contract_storage_update_requests(NT::uint32& count,
 {
     std::array<ContractStorageUpdateRequest<NT>, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL> values;
     for (size_t i = 0; i < num_values_required; i++) {
-        const auto prev = count++;
+        auto prev = count++;
         values[i] = ContractStorageUpdateRequest<NT>{
             .storage_slot = prev,
             .old_value = prev,
@@ -85,7 +86,7 @@ std::array<ContractStorageRead<NT>, MAX_PUBLIC_DATA_READS_PER_CALL> generate_con
 {
     std::array<ContractStorageRead<NT>, MAX_PUBLIC_DATA_READS_PER_CALL> values;
     for (size_t i = 0; i < num_values_required; i++) {
-        const auto prev = count++;
+        auto prev = count++;
         values[i] = ContractStorageRead<NT>{
             .storage_slot = prev,
             .current_value = prev,
@@ -102,7 +103,7 @@ PublicCallStackItem generate_call_stack_item(NT::fr contract_address,
                                              NT::uint32 seed = 0)
 {
     NT::uint32 count = seed + 1;
-    FunctionData<NT> const function_data{
+    FunctionData<NT> function_data{
         .selector =
             {
                 .value = count,
@@ -110,7 +111,7 @@ PublicCallStackItem generate_call_stack_item(NT::fr contract_address,
         .is_private = false,
         .is_constructor = false,
     };
-    CallContext<NT> const call_context{
+    CallContext<NT> call_context{
         .msg_sender = msg_sender,
         .storage_contract_address = storage_contract_address,
         .portal_contract_address = portal_contract_address,
@@ -119,23 +120,22 @@ PublicCallStackItem generate_call_stack_item(NT::fr contract_address,
         .is_static_call = false,
         .is_contract_deployment = false,
     };
-    fr const args_hash = count;
-    std::array<NT::fr, RETURN_VALUES_LENGTH> const return_values = array_of_values<RETURN_VALUES_LENGTH>(count);
-    std::array<NT::fr, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL> const public_call_stack =
+    fr args_hash = count;
+    std::array<NT::fr, RETURN_VALUES_LENGTH> return_values = array_of_values<RETURN_VALUES_LENGTH>(count);
+    std::array<NT::fr, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL> public_call_stack =
         array_of_values<MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>(count);
-    std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_CALL> const new_commitments =
+    std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_CALL> new_commitments =
         array_of_values<MAX_NEW_COMMITMENTS_PER_CALL>(count);
-    std::array<NT::fr, MAX_NEW_NULLIFIERS_PER_CALL> const new_nullifiers =
+    std::array<NT::fr, MAX_NEW_NULLIFIERS_PER_CALL> new_nullifiers =
         array_of_values<MAX_NEW_NULLIFIERS_PER_CALL>(count);
-    std::array<NT::fr, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> const new_l2_to_l1_msgs =
+    std::array<NT::fr, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> new_l2_to_l1_msgs =
         array_of_values<MAX_NEW_L2_TO_L1_MSGS_PER_CALL>(count);
-    std::array<ContractStorageRead<NT>, MAX_PUBLIC_DATA_READS_PER_CALL> const reads =
-        generate_contract_storage_reads(count);
-    std::array<ContractStorageUpdateRequest<NT>, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL> const update_requests =
+    std::array<ContractStorageRead<NT>, MAX_PUBLIC_DATA_READS_PER_CALL> reads = generate_contract_storage_reads(count);
+    std::array<ContractStorageUpdateRequest<NT>, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL> update_requests =
         generate_contract_storage_update_requests(count);
 
     // create the public circuit public inputs
-    auto const public_circuit_public_inputs = PublicCircuitPublicInputs<NT>{
+    auto public_circuit_public_inputs = PublicCircuitPublicInputs<NT>{
         .call_context = call_context,
         .args_hash = args_hash,
         .return_values = return_values,
@@ -181,7 +181,7 @@ std::array<PublicDataRead<NT>, MAX_PUBLIC_DATA_READS_PER_CALL> public_data_reads
 {
     std::array<PublicDataRead<NT>, MAX_PUBLIC_DATA_READS_PER_CALL> values;
     for (size_t i = 0; i < MAX_PUBLIC_DATA_READS_PER_CALL; i++) {
-        const auto& read = public_data_reads[i];
+        auto& read = public_data_reads[i];
         if (read.is_empty()) {
             continue;
         }
@@ -197,7 +197,7 @@ public_data_update_requests_from_contract_storage_update_requests(
 {
     std::array<PublicDataUpdateRequest<NT>, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL> values;
     for (size_t i = 0; i < MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX; i++) {
-        const auto& update_request = update_requests[i];
+        auto& update_request = update_requests[i];
         if (update_request.is_empty()) {
             continue;
         }
@@ -247,23 +247,14 @@ std::array<NT::fr, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> new_l2_messages_from_message(
     return formatted_msgs;
 }
 
-/**
- * @brief Generates the inputs to the public kernel circuit
- *
- * @param is_constructor whether this public circuit call is a constructor
- * @param args_vec the private call's args
- * @return PrivateInputs<NT> - the inputs to the private call circuit
- */
-PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean private_previous)
+PublicCallData<NT> get_public_call_data(NT::uint32& seed)
 {
-    NT::uint32 seed = 1000;
-
     NT::address contract_address = 12345;
-    const NT::fr portal_contract_address = 23456;
+    NT::fr portal_contract_address = 23456;
 
-    const NT::address msg_sender = NT::fr(1);
+    NT::address msg_sender = NT::fr(1);
 
-    FunctionData<NT> const function_data{
+    FunctionData<NT> function_data{
         .selector =
             {
                 .value = 1,
@@ -272,7 +263,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         .is_constructor = false,
     };
 
-    CallContext<NT> const call_context{
+    CallContext<NT> call_context{
         .msg_sender = msg_sender,
         .storage_contract_address = contract_address,
         .portal_contract_address = portal_contract_address,
@@ -282,21 +273,21 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         .is_contract_deployment = false,
     };
 
-    std::vector<NT::fr> const args = { 1, 2, 3 };
+    std::vector<NT::fr> args = { 1, 2, 3 };
 
     //***************************************************************************
     // We can create a TxRequest from some of the above data.
     //***************************************************************************
-    auto const tx_request = TxRequest<NT>{ .origin = contract_address,
-                                           .function_data = function_data,
-                                           .args_hash = compute_var_args_hash<NT>(args),
-                                           .tx_context = TxContext<NT>{
-                                               .is_fee_payment_tx = false,
-                                               .is_rebate_payment_tx = false,
-                                               .is_contract_deployment_tx = false,
-                                               .contract_deployment_data = {},
-                                               .chain_id = 1,
-                                           } };
+    auto tx_request = TxRequest<NT>{ .origin = contract_address,
+                                     .function_data = function_data,
+                                     .args_hash = compute_var_args_hash<NT>(args),
+                                     .tx_context = TxContext<NT>{
+                                         .is_fee_payment_tx = false,
+                                         .is_rebate_payment_tx = false,
+                                         .is_contract_deployment_tx = false,
+                                         .contract_deployment_data = {},
+                                         .chain_id = 1,
+                                     } };
 
     std::array<PublicCallStackItem, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL> child_call_stacks;
     NT::fr child_contract_address = 100000;
@@ -315,21 +306,21 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         child_portal_contract_address++;
     }
 
-    std::array<fr, RETURN_VALUES_LENGTH> const return_values =
+    std::array<fr, RETURN_VALUES_LENGTH> return_values =
         array_of_values<RETURN_VALUES_LENGTH>(seed, RETURN_VALUES_LENGTH / 2);
-    std::array<ContractStorageUpdateRequest<NT>, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL> const update_requests =
+    std::array<ContractStorageUpdateRequest<NT>, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL> update_requests =
         generate_contract_storage_update_requests(seed, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL / 2);
-    std::array<ContractStorageRead<NT>, MAX_PUBLIC_DATA_READS_PER_CALL> const reads =
+    std::array<ContractStorageRead<NT>, MAX_PUBLIC_DATA_READS_PER_CALL> reads =
         generate_contract_storage_reads(seed, MAX_PUBLIC_DATA_READS_PER_CALL / 2);
-    std::array<fr, MAX_NEW_COMMITMENTS_PER_CALL> const new_commitments =
+    std::array<fr, MAX_NEW_COMMITMENTS_PER_CALL> new_commitments =
         array_of_values<MAX_NEW_COMMITMENTS_PER_CALL>(seed, MAX_NEW_COMMITMENTS_PER_CALL / 2);
-    std::array<fr, MAX_NEW_NULLIFIERS_PER_CALL> const new_nullifiers =
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_CALL> new_nullifiers =
         array_of_values<MAX_NEW_NULLIFIERS_PER_CALL>(seed, MAX_NEW_NULLIFIERS_PER_CALL / 2);
-    std::array<fr, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> const new_l2_to_l1_msgs =
+    std::array<fr, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> new_l2_to_l1_msgs =
         array_of_values<MAX_NEW_L2_TO_L1_MSGS_PER_CALL>(seed, MAX_NEW_L2_TO_L1_MSGS_PER_CALL / 2);
-    std::array<fr, NUM_FIELDS_PER_SHA256> const unencrypted_logs_hash =
+    std::array<fr, NUM_FIELDS_PER_SHA256> unencrypted_logs_hash =
         array_of_values<NUM_FIELDS_PER_SHA256>(seed, NUM_FIELDS_PER_SHA256);
-    fr const unencrypted_log_preimages_length = ++seed;
+    fr unencrypted_log_preimages_length = ++seed;
     HistoricBlockData<NT> block_data = {
         .private_data_tree_root = ++seed,
         .nullifier_tree_root = ++seed,
@@ -342,7 +333,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
     };
 
     // create the public circuit public inputs
-    auto const public_circuit_public_inputs = PublicCircuitPublicInputs<NT>{
+    auto public_circuit_public_inputs = PublicCircuitPublicInputs<NT>{
         .call_context = call_context,
         .args_hash = compute_var_args_hash<NT>(args),
         .return_values = return_values,
@@ -357,43 +348,44 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         .historic_block_data = block_data,
     };
 
-    const PublicCallStackItem call_stack_item{
+    PublicCallStackItem call_stack_item{
         .contract_address = contract_address,
         .function_data = tx_request.function_data,
         .public_inputs = public_circuit_public_inputs,
     };
 
-    const PublicCallData<NT> public_call_data = {
+    PublicCallData<NT> public_call_data = {
         .call_stack_item = call_stack_item,
         .public_call_stack_preimages = child_call_stacks,
         .portal_contract_address = portal_contract_address,
         .bytecode_hash = 1234567,
     };
 
-    // TODO(914) Should this be unused?
-    [[maybe_unused]] HistoricBlockData<NT> const historic_tree_roots = {
-        .private_data_tree_root = 1000,
-        .contract_tree_root = 2000,
-        .l1_to_l2_messages_tree_root = 3000,
-        .private_kernel_vk_tree_root = 4000,
-    };
+    return public_call_data;
+}
 
-    CombinedConstantData<NT> const end_constants = { .block_data =
-                                                         HistoricBlockData<NT>{ .private_data_tree_root = ++seed,
-                                                                                .nullifier_tree_root = ++seed,
-                                                                                .contract_tree_root = ++seed,
-                                                                                .private_kernel_vk_tree_root = ++seed },
-                                                     .tx_context = TxContext<NT>{
-                                                         .is_fee_payment_tx = false,
-                                                         .is_rebate_payment_tx = false,
-                                                         .is_contract_deployment_tx = false,
-                                                         .contract_deployment_data = {},
-                                                     } };
+CombinedConstantData<NT> get_combined_constant_data(NT::uint32& seed)
+{
+    return CombinedConstantData<NT>{ .block_data = HistoricBlockData<NT>{ .private_data_tree_root = ++seed,
+                                                                          .nullifier_tree_root = ++seed,
+                                                                          .contract_tree_root = ++seed,
+                                                                          .private_kernel_vk_tree_root = ++seed },
+                                     .tx_context = TxContext<NT>{
+                                         .is_fee_payment_tx = false,
+                                         .is_rebate_payment_tx = false,
+                                         .is_contract_deployment_tx = false,
+                                         .contract_deployment_data = {},
+                                     } };
+}
 
+CombinedAccumulatedData<NT> get_combined_accumulated_data(NT::uint32& seed,
+                                                          NT::fr const& call_stack_item_hash,
+                                                          bool private_previous)
+{
     std::array<NT::fr, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX> public_call_stack{};
-    public_call_stack[0] = public_call_data.call_stack_item.hash();
+    public_call_stack[0] = call_stack_item_hash;
 
-    CombinedAccumulatedData<NT> const end_accumulated_data = {
+    return CombinedAccumulatedData<NT>{
         .new_commitments =
             array_of_values<MAX_NEW_COMMITMENTS_PER_TX>(seed, private_previous ? MAX_NEW_COMMITMENTS_PER_TX / 2 : 0),
         .new_nullifiers =
@@ -414,22 +406,53 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
             std::array<PublicDataUpdateRequest<NT>, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>(),
         .public_data_reads = std::array<PublicDataRead<NT>, MAX_PUBLIC_DATA_READS_PER_TX>()
     };
+}
 
-    const PrivateKernelPublicInputs<NT> public_inputs = {
-        .end = end_accumulated_data,
-        .constants = end_constants,
-        .is_private = private_previous,
-    };
+/**
+ * @brief Generates the inputs to the init public kernel circuit
+ *
+ * @return PublicKernelInputsInit<NT> - the inputs to the init public kernel
+ */
+PublicKernelInputsInit<NT> get_public_kernel_inputs_init()
+{
+    NT::uint32 seed = 1000;
+    auto public_call_data = get_public_call_data(seed);
 
-    const PreviousKernelData<NT> previous_kernel = {
-        .public_inputs = public_inputs,
-    };
+    auto end_constants = get_combined_constant_data(seed);
+    auto end_accumulated_data = get_combined_accumulated_data(seed, public_call_data.call_stack_item.hash(), true);
 
-    // NOLINTNEXTLINE(misc-const-correctness)
-    PublicKernelInputs<NT> kernel_inputs = {
-        .previous_kernel = previous_kernel,
+    PublicKernelInputsInit<NT> kernel_inputs = {
         .public_call = public_call_data,
     };
+
+    kernel_inputs.previous_kernel.public_inputs.end = end_accumulated_data;
+    kernel_inputs.previous_kernel.public_inputs.constants = end_constants;
+    kernel_inputs.previous_kernel.public_inputs.is_private = true;
+
+    return kernel_inputs;
+}  // namespace aztec3::circuits::kernel::public_kernel
+
+/**
+ * @brief Generates the inputs to the inner public kernel circuit
+ *
+ * @return PublicKernelInputsInner<NT> - the inputs to the inner public kernel
+ */
+PublicKernelInputsInner<NT> get_public_kernel_inputs_inner()
+{
+    NT::uint32 seed = 1000;
+    auto public_call_data = get_public_call_data(seed);
+
+    auto end_constants = get_combined_constant_data(seed);
+    auto end_accumulated_data = get_combined_accumulated_data(seed, public_call_data.call_stack_item.hash(), false);
+
+    PublicKernelInputsInner<NT> kernel_inputs = {
+        .public_call = public_call_data,
+    };
+
+    kernel_inputs.previous_kernel.public_inputs.end = end_accumulated_data;
+    kernel_inputs.previous_kernel.public_inputs.constants = end_constants;
+    kernel_inputs.previous_kernel.public_inputs.is_private = false;
+
     return kernel_inputs;
 }  // namespace aztec3::circuits::kernel::public_kernel
 
@@ -466,8 +489,9 @@ void validate_public_kernel_outputs_correctly_propagated(const KernelInput& inpu
     }
 }
 
+template <typename KernelInput>
 void validate_private_data_propagation(DummyBuilder& builder,
-                                       const PublicKernelInputs<NT>& inputs,
+                                       const KernelInput& inputs,
                                        const PublicKernelPublicInputs<NT>& public_inputs)
 {
     ASSERT_TRUE(source_arrays_are_in_target(builder,
@@ -492,7 +516,7 @@ void validate_private_data_propagation(DummyBuilder& builder,
 TEST(public_kernel_tests, only_valid_public_data_reads_should_be_propagated)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__only_valid_public_data_reads_should_be_propagated");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     // modify the contract storage reads so only 2 are valid and only those should be propagated
     const auto first_valid = ContractStorageRead<NT>{
@@ -535,7 +559,7 @@ TEST(public_kernel_tests, only_valid_public_data_reads_should_be_propagated)
 TEST(public_kernel_tests, only_valid_update_requests_should_be_propagated)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__only_valid_update_requests_should_be_propagated");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     // modify the contract storage update requests so only 2 are valid and only those should be propagated
     const auto first_valid = ContractStorageUpdateRequest<NT>{
@@ -582,7 +606,7 @@ TEST(public_kernel_tests, only_valid_update_requests_should_be_propagated)
 TEST(public_kernel_tests, constructor_should_fail)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__constructor_should_fail");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     inputs.public_call.call_stack_item.function_data.is_constructor = true;
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
@@ -593,7 +617,7 @@ TEST(public_kernel_tests, constructor_should_fail)
 TEST(public_kernel_tests, constructor_should_fail_2)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__constructor_should_fail_2");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     inputs.public_call.call_stack_item.public_inputs.call_context.is_contract_deployment = true;
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
@@ -604,7 +628,7 @@ TEST(public_kernel_tests, constructor_should_fail_2)
 TEST(public_kernel_tests, no_bytecode_hash_should_fail)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__no_bytecode_hash_should_fail");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     inputs.public_call.bytecode_hash = 0;
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
@@ -616,7 +640,7 @@ TEST(public_kernel_tests, no_bytecode_hash_should_fail)
 TEST(public_kernel_tests, invalid_is_internal)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__no_bytecode_hash_should_fail");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     // Make the call internal but msg_sender != storage_contract_address.
     inputs.public_call.call_stack_item.function_data.is_internal = true;
@@ -631,7 +655,7 @@ TEST(public_kernel_tests, invalid_is_internal)
 TEST(public_kernel_tests, contract_address_must_be_valid)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__contract_address_must_be_valid");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     inputs.public_call.call_stack_item.contract_address = 0;
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
@@ -642,7 +666,7 @@ TEST(public_kernel_tests, contract_address_must_be_valid)
 TEST(public_kernel_tests, function_selector_must_be_valid)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__function_selector_must_be_valid");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     inputs.public_call.call_stack_item.function_data.selector = {
         .value = 0,
@@ -655,7 +679,7 @@ TEST(public_kernel_tests, function_selector_must_be_valid)
 TEST(public_kernel_tests, private_call_should_fail)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__private_call_should_fail");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     inputs.public_call.call_stack_item.function_data.is_private = true;
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
@@ -667,7 +691,7 @@ TEST(public_kernel_tests, inconsistent_call_hash_should_fail)
 {
     for (size_t i = 0; i < MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL; i++) {
         DummyBuilder dummyBuilder = DummyBuilder(format("public_kernel_tests__inconsistent_call_hash_should_fail-", i));
-        PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+        PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
         // change a value of something in the call stack pre-image
         inputs.public_call.public_call_stack_preimages[i].public_inputs.args_hash++;
@@ -682,7 +706,7 @@ TEST(public_kernel_tests, incorrect_storage_contract_address_fails_for_regular_c
     for (size_t i = 0; i < MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL; i++) {
         DummyBuilder dummyBuilder =
             DummyBuilder(format("public_kernel_tests__incorrect_storage_contract_address_fails_for_regular_calls-", i));
-        PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+        PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
         // change the storage contract address so it does not equal the contract address
         const NT::fr new_contract_address =
@@ -704,7 +728,7 @@ TEST(public_kernel_tests, incorrect_msg_sender_fails_for_regular_calls)
     for (size_t i = 0; i < MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL; i++) {
         DummyBuilder dummyBuilder =
             DummyBuilder(format("public_kernel_tests__incorrect_msg_sender_fails_for_regular_calls-", i));
-        PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+        PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
         // set the msg sender to be the address of the called contract, which is wrong
         const auto new_msg_sender = inputs.public_call.public_call_stack_preimages[i].contract_address;
         // change the storage contract address so it does not equal the contract address
@@ -723,7 +747,7 @@ TEST(public_kernel_tests, public_kernel_circuit_succeeds_for_mixture_of_regular_
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__public_kernel_circuit_succeeds_for_mixture_of_regular_and_delegate_calls");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     const auto contract_address = NT::fr(inputs.public_call.call_stack_item.contract_address);
     const auto origin_msg_sender = NT::fr(inputs.public_call.call_stack_item.public_inputs.call_context.msg_sender);
@@ -765,7 +789,7 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_msg_sender_in
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__public_kernel_circuit_fails_on_incorrect_msg_sender_in_delegate_call");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     const auto contract_address = NT::fr(inputs.public_call.call_stack_item.contract_address);
     // const auto origin_msg_sender = NT::fr(inputs.public_call.call_stack_item.public_inputs.call_context.msg_sender);
@@ -798,7 +822,7 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_storage_contr
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__public_kernel_circuit_fails_on_incorrect_storage_contract_in_delegate_call");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     // const auto contract_address = NT::fr(inputs.public_call.call_stack_item.contract_address);
     const auto origin_msg_sender = NT::fr(inputs.public_call.call_stack_item.public_inputs.call_context.msg_sender);
@@ -829,7 +853,7 @@ TEST(public_kernel_tests, public_kernel_circuit_fails_on_incorrect_portal_contra
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__public_kernel_circuit_fails_on_incorrect_portal_contract_in_delegate_call");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     const auto contract_address = NT::fr(inputs.public_call.call_stack_item.contract_address);
     const auto origin_msg_sender = NT::fr(inputs.public_call.call_stack_item.public_inputs.call_context.msg_sender);
@@ -862,7 +886,7 @@ TEST(public_kernel_tests, public_kernel_circuit_only_checks_non_empty_call_stack
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__public_kernel_circuit_only_checks_non_empty_call_stacks");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     const auto contract_address = NT::fr(inputs.public_call.call_stack_item.contract_address);
     const auto origin_msg_sender = NT::fr(inputs.public_call.call_stack_item.public_inputs.call_context.msg_sender);
@@ -900,7 +924,7 @@ TEST(public_kernel_tests, public_kernel_circuit_with_private_previous_kernel_sho
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__public_kernel_circuit_with_private_previous_kernel_should_succeed");
-    PublicKernelInputs<NT> const inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> const inputs = get_public_kernel_inputs_init();
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
     ASSERT_FALSE(dummyBuilder.failed());
 }
@@ -909,7 +933,7 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__circuit_outputs_should_be_correctly_populated_with_previous_private_kernel");
-    PublicKernelInputs<NT> const inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> const inputs = get_public_kernel_inputs_init();
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
 
     // test that the prior set of private kernel public inputs were copied to the outputs
@@ -923,7 +947,7 @@ TEST(public_kernel_tests, private_previous_kernel_non_empty_private_call_stack_s
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__private_previous_kernel_non_empty_private_call_stack_should_fail");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
     inputs.previous_kernel.public_inputs.end.private_call_stack[0] = 1;
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
     ASSERT_TRUE(dummyBuilder.failed());
@@ -934,7 +958,7 @@ TEST(public_kernel_tests, private_previous_kernel_empty_public_call_stack_should
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__private_previous_kernel_empty_public_call_stack_should_fail");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
     inputs.previous_kernel.public_inputs.end.public_call_stack =
         std::array<NT::fr, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>{};
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
@@ -946,7 +970,7 @@ TEST(public_kernel_tests, private_previous_kernel_non_private_previous_kernel_sh
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__private_previous_kernel_non_private_previous_kernel_should_fail");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
     inputs.previous_kernel.public_inputs.is_private = false;
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
     ASSERT_TRUE(dummyBuilder.failed());
@@ -957,7 +981,7 @@ TEST(public_kernel_tests, previous_private_kernel_fails_if_contract_storage_upda
 {
     DummyBuilder dummyBuilder = DummyBuilder(
         "public_kernel_tests__previous_private_kernel_fails_if_contract_storage_update_requests_on_static_call");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     // the function call has contract storage update requests so setting it to static should fail
     inputs.public_call.call_stack_item.public_inputs.call_context.is_static_call = true;
@@ -973,7 +997,7 @@ TEST(public_kernel_tests, previous_private_kernel_fails_if_incorrect_storage_con
 {
     DummyBuilder dummyBuilder = DummyBuilder(
         "public_kernel_tests__previous_private_kernel_fails_if_incorrect_storage_contract_on_delegate_call");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> inputs = get_public_kernel_inputs_init();
 
     // the function call has the contract address and storage contract address equal and so it should fail for a
     // delegate call
@@ -989,7 +1013,7 @@ TEST(public_kernel_tests, public_kernel_circuit_with_public_previous_kernel_shou
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__public_kernel_circuit_with_public_previous_kernel_should_succeed");
-    PublicKernelInputs<NT> const inputs = get_kernel_inputs_with_previous_kernel(false);
+    PublicKernelInputsInner<NT> const inputs = get_public_kernel_inputs_inner();
     auto public_inputs = native_public_kernel_circuit_public_previous_kernel(dummyBuilder, inputs);
     ASSERT_FALSE(dummyBuilder.failed());
 }
@@ -998,7 +1022,7 @@ TEST(public_kernel_tests, public_previous_kernel_empty_public_call_stack_should_
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__public_previous_kernel_empty_public_call_stack_should_fail");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
+    PublicKernelInputsInner<NT> inputs = get_public_kernel_inputs_inner();
     inputs.previous_kernel.public_inputs.end.public_call_stack =
         std::array<NT::fr, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX>{};
     auto public_inputs = native_public_kernel_circuit_public_previous_kernel(dummyBuilder, inputs);
@@ -1010,7 +1034,7 @@ TEST(public_kernel_tests, public_previous_kernel_private_previous_kernel_should_
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__public_previous_kernel_private_previous_kernel_should_fail");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
+    PublicKernelInputsInner<NT> inputs = get_public_kernel_inputs_inner();
     inputs.previous_kernel.public_inputs.is_private = true;
     auto public_inputs = native_public_kernel_circuit_public_previous_kernel(dummyBuilder, inputs);
     ASSERT_TRUE(dummyBuilder.failed());
@@ -1021,7 +1045,7 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
 {
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__circuit_outputs_should_be_correctly_populated_with_previous_public_kernel");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
+    PublicKernelInputsInner<NT> inputs = get_public_kernel_inputs_inner();
 
     // setup 2 previous data writes on the public inputs
     const auto first_write = PublicDataUpdateRequest<NT>{
@@ -1179,7 +1203,7 @@ TEST(public_kernel_tests, previous_public_kernel_fails_if_contract_storage_updat
 {
     DummyBuilder dummyBuilder = DummyBuilder(
         "public_kernel_tests__previous_public_kernel_fails_if_contract_storage_update_requests_on_static_call");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
+    PublicKernelInputsInner<NT> inputs = get_public_kernel_inputs_inner();
 
     // the function call has contract storage update requests so setting it to static should fail
     inputs.public_call.call_stack_item.public_inputs.call_context.is_static_call = true;
@@ -1195,7 +1219,7 @@ TEST(public_kernel_tests, previous_public_kernel_fails_if_incorrect_storage_cont
 {
     DummyBuilder dummyBuilder = DummyBuilder(
         "public_kernel_tests__previous_public_kernel_fails_if_incorrect_storage_contract_on_delegate_call");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
+    PublicKernelInputsInner<NT> inputs = get_public_kernel_inputs_inner();
 
     // the function call has the contract address and storage contract address equal and so it should fail for a
     // delegate call
@@ -1210,7 +1234,7 @@ TEST(public_kernel_tests, previous_public_kernel_fails_if_incorrect_storage_cont
 TEST(public_kernel_tests, public_kernel_fails_creating_new_commitments_on_static_call)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_fails_creating_new_commitments_on_static_call");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
+    PublicKernelInputsInner<NT> inputs = get_public_kernel_inputs_inner();
 
     // the function call has the contract address and storage contract address equal and so it should fail for a
     // delegate call
@@ -1234,7 +1258,7 @@ TEST(public_kernel_tests, public_kernel_fails_creating_new_commitments_on_static
 TEST(public_kernel_tests, public_kernel_fails_creating_new_nullifiers_on_static_call)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_fails_creating_new_nullifiers_on_static_call");
-    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
+    PublicKernelInputsInner<NT> inputs = get_public_kernel_inputs_inner();
 
     // the function call has the contract address and storage contract address equal and so it should fail for a
     // delegate call
@@ -1260,7 +1284,7 @@ TEST(public_kernel_tests, public_kernel_fails_creating_new_nullifiers_on_static_
 TEST(public_kernel_tests, logs_are_handled_as_expected)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__logs_are_handled_as_expected");
-    PublicKernelInputs<NT> const& inputs = get_kernel_inputs_with_previous_kernel(true);
+    PublicKernelInputsInit<NT> const& inputs = get_public_kernel_inputs_init();
     std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& zero_hash{};
 
     // Ensure encrypted logs hash values are non-zero

@@ -2,7 +2,7 @@
 #include "init.hpp"
 
 #include "aztec3/circuits/abis/new_contract_data.hpp"
-#include "aztec3/circuits/abis/previous_kernel_data.hpp"
+#include "aztec3/circuits/abis/previous_private_kernel_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_inner.hpp"
 #include "aztec3/circuits/abis/private_kernel_public_inputs.hpp"
 #include "aztec3/utils/array.hpp"
@@ -12,7 +12,7 @@ namespace {
 using NT = aztec3::utils::types::NativeTypes;
 
 using aztec3::circuits::abis::ContractLeafPreimage;
-using aztec3::circuits::abis::PreviousKernelData;
+using aztec3::circuits::abis::PreviousPrivateKernelData;
 using aztec3::circuits::abis::PrivateKernelPublicInputs;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInner;
 using aztec3::circuits::kernel::private_kernel::common_initialise_end_values;
@@ -21,7 +21,8 @@ using aztec3::utils::array_pop;
 using aztec3::utils::CircuitErrorCode;
 using aztec3::utils::DummyCircuitBuilder;
 
-void initialise_end_values(PreviousKernelData<NT> const& previous_kernel, PrivateKernelPublicInputs<NT>& public_inputs)
+void initialise_end_values(PreviousPrivateKernelData<NT> const& previous_kernel,
+                           PrivateKernelPublicInputs<NT>& public_inputs)
 {
     common_initialise_end_values(previous_kernel, public_inputs);
 

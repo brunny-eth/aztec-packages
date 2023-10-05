@@ -484,7 +484,7 @@ PrivateKernelInputsInner<NT> do_private_call_get_kernel_inputs_inner(
 
     auto const& private_circuit_public_inputs = private_call_data.call_stack_item.public_inputs;
     // Get dummy previous kernel
-    auto mock_previous_kernel = utils::dummy_previous_kernel(is_circuit);
+    auto mock_previous_kernel = utils::dummy_previous_private_kernel(is_circuit);
     // Fill in some important fields in public inputs
     mock_previous_kernel.public_inputs.end.private_call_stack = initial_kernel_private_call_stack;
     mock_previous_kernel.public_inputs.constants = CombinedConstantData<NT>{

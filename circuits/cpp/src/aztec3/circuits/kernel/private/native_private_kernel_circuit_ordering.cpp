@@ -1,7 +1,7 @@
 #include "common.hpp"
 #include "init.hpp"
 
-#include "aztec3/circuits/abis/previous_kernel_data.hpp"
+#include "aztec3/circuits/abis/previous_private_kernel_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_ordering.hpp"
 #include "aztec3/circuits/abis/private_kernel_public_inputs_final.hpp"
 #include "aztec3/circuits/hash.hpp"
@@ -15,7 +15,7 @@
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
 
-using aztec3::circuits::abis::PreviousKernelData;
+using aztec3::circuits::abis::PreviousPrivateKernelData;
 using aztec3::circuits::abis::PrivateKernelPublicInputsFinal;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsOrdering;
 using aztec3::circuits::kernel::private_kernel::common_initialise_end_values;
@@ -23,7 +23,7 @@ using aztec3::utils::array_rearrange;
 using aztec3::utils::CircuitErrorCode;
 using aztec3::utils::DummyCircuitBuilder;
 
-void initialise_end_values(PreviousKernelData<NT> const& previous_kernel,
+void initialise_end_values(PreviousPrivateKernelData<NT> const& previous_kernel,
                            PrivateKernelPublicInputsFinal<NT>& public_inputs)
 {
     common_initialise_end_values(previous_kernel, public_inputs);

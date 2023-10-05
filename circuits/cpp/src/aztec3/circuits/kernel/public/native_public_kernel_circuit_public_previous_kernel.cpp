@@ -4,7 +4,7 @@
 #include "init.hpp"
 
 #include "aztec3/circuits/abis/private_kernel_public_inputs.hpp"
-#include "aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp"
+#include "aztec3/circuits/abis/public_kernel/public_kernel_inputs_inner.hpp"
 #include "aztec3/utils/dummy_circuit_builder.hpp"
 
 // Purpose of this anonymous namespace is to avoid to clash with the validate_inputs()
@@ -13,14 +13,14 @@ namespace {
 using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 using aztec3::circuits::kernel::public_kernel::NT;
 using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
-using aztec3::circuits::abis::public_kernel::PublicKernelInputs;
+using aztec3::circuits::abis::public_kernel::PublicKernelInputsInner;
 
 /**
  * @brief Validates the kernel circuit inputs specific to having a public previous kernel
  * @param builder The circuit builder
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  */
-void validate_inputs(DummyBuilder& builder, PublicKernelInputs<NT> const& public_kernel_inputs)
+void validate_inputs(DummyBuilder& builder, PublicKernelInputsInner<NT> const& public_kernel_inputs)
 {
     const auto& previous_kernel = public_kernel_inputs.previous_kernel.public_inputs;
     builder.do_assert(previous_kernel.is_private == false,
@@ -42,7 +42,7 @@ using aztec3::circuits::kernel::public_kernel::common_validate_kernel_execution;
  * @return The circuit public inputs
  */
 PublicKernelPublicInputs<NT> native_public_kernel_circuit_public_previous_kernel(
-    DummyBuilder& builder, PublicKernelInputs<NT> const& public_kernel_inputs)
+    DummyBuilder& builder, PublicKernelInputsInner<NT> const& public_kernel_inputs)
 {
     // construct the circuit outputs
     PublicKernelPublicInputs<NT> public_inputs{};
@@ -65,7 +65,7 @@ PublicKernelPublicInputs<NT> native_public_kernel_circuit_public_previous_kernel
     // update the public end state of the circuit
     common_update_public_end_values(builder, public_kernel_inputs, public_inputs);
 
-    accumulate_unencrypted_logs<NT>(public_kernel_inputs, public_inputs);
+    accumulate_unencrypted_logs(public_kernel_inputs, public_inputs);
 
     return public_inputs;
 };
