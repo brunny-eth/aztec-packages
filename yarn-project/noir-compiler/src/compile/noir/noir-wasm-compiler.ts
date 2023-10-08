@@ -21,23 +21,20 @@ export class NoirWasmContractCompiler {
    * Compiles the project.
    */
   public async compile(): Promise<NoirCompilationArtifacts[]> {
-    const noirPackage = await NoirPackage.new(this.#projectPath);
+    const cacheRoot = process.env.XDG_CACHE_HOME ?? join(process.env.HOME ?? '', '.cache');
+    const filemanager = new Filemanager(join(cacheRoot, 'noir_wasm'));
 
+    const noirPackage = await NoirPackage.new(this.#projectPath, filemanager);
     if (noirPackage.getType() !== 'contract') {
       throw new Error('This is not a contract project');
     }
 
-    const cacheRoot = process.env.XDG_CACHE_HOME ?? join(process.env.HOME ?? '', '.cache');
-    const filemanager = new Filemanager(join(cacheRoot, 'noir_wasm'));
     const dependencyResolver = new NoirDependencyResolver(filemanager);
-
-    for (const [name, config] of Object.entries(noirPackage.getDependencies())) {
-      await dependencyResolver.add(noirPackage.getPackagePath(), name, config);
-    }
+    await dependencyResolver.recursivelyResolveDependencies(noirPackage);
 
     initializeResolver((sourceId: any) => {
       try {
-        const libFile = dependencyResolver.resolve(sourceId);
+        const libFile = dependencyResolver.findFile(sourceId);
         return filemanager.readFileSync(libFile ?? sourceId, 'utf-8');
       } catch (err) {
         return '';

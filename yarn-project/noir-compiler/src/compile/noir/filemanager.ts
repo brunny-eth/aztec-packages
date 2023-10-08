@@ -22,7 +22,7 @@ export class Filemanager {
    */
   public async writeFile(name: string, stream: Readable): Promise<void> {
     if (isAbsolute(name)) {
-      throw new Error("can't check absolute path");
+      throw new Error("can't write absolute path");
     }
 
     const path = this.#getPath(name);

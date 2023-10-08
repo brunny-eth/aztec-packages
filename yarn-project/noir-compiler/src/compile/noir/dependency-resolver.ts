@@ -8,13 +8,14 @@ import { ReadableStream } from 'node:stream/web';
 import { Parse } from 'tar';
 
 import { Filemanager } from './filemanager.js';
-import { NoirGitDependencyConfig, NoirLocalDependencyConfig } from './package-config.js';
+import { NoirGitDependencyConfig } from './package-config.js';
+import { NoirPackage } from './package.js';
 
 /**
  * Noir Dependency Resolver
  */
 export class NoirDependencyResolver {
-  #libs = new Map<string, string>();
+  dependencies = new Map<string, NoirPackage>();
   #fm: Filemanager;
   #log: LogFn;
 
@@ -24,26 +25,32 @@ export class NoirDependencyResolver {
   }
 
   /**
-   * Resolves a dependency.
-   * @param pkgLocation - Location of the package
-   * @param name - Name of the dependency
-   * @param dependency - Dependency to resolve
+   * Resolves dependencies for a package.
+   * @param noirPackage - The package to resolve dependencies for
    */
-  public async add(
-    pkgLocation: string,
-    name: string,
-    dependency: NoirGitDependencyConfig | NoirLocalDependencyConfig,
-  ): Promise<void> {
-    const path =
-      'git' in dependency ? await this.#fetchRemoteDependency(dependency) : resolve(pkgLocation, dependency.path);
-    this.#libs.set(name, path);
+  public async recursivelyResolveDependencies(noirPackage: NoirPackage): Promise<void> {
+    for (const [name, config] of Object.entries(noirPackage.getDependencies())) {
+      // TODO what happens if more than one package has the same name but different versions?
+      if (this.dependencies.has(name)) {
+        continue;
+      }
+
+      const path =
+        'git' in config
+          ? await this.#fetchRemoteDependency(config)
+          : resolve(noirPackage.getPackagePath(), config.path);
+      const dependency = await NoirPackage.new(path, this.#fm);
+      this.dependencies.set(name, dependency);
+
+      await this.recursivelyResolveDependencies(dependency);
+    }
   }
 
   /**
    * Gets the names of the crates in this dependency list
    */
   public getCrateNames() {
-    return [...this.#libs.keys()];
+    return [...this.dependencies.keys()];
   }
 
   /**
@@ -51,10 +58,11 @@ export class NoirDependencyResolver {
    * @param sourceId - The source being resolved
    * @returns The path to the resolved file
    */
-  public resolve(sourceId: string): string | null {
+  public findFile(sourceId: string): string | null {
     const [lib, ...path] = sourceId.split('/').filter(x => x);
-    if (this.#libs.has(lib)) {
-      return join(this.#libs.get(lib)!, 'src', ...path);
+    const pkg = this.dependencies.get(lib);
+    if (pkg) {
+      return join(pkg.getSrcPath(), ...path);
     } else {
       return null;
     }
