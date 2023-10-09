@@ -15,6 +15,7 @@ import {
   RollupAbi,
   RollupBytecode,
 } from '@aztec/l1-artifacts';
+import { LogId, parseLogId } from '@aztec/types';
 
 import { InvalidArgumentError } from 'commander';
 import fs from 'fs';
@@ -223,6 +224,19 @@ export function parseOptionalAztecAddress(address: string): AztecAddress | undef
     return undefined;
   }
   return parseAztecAddress(address);
+}
+
+/**
+ * Parses an optional log ID string into a LogId object.
+ *
+ * @param logId - The log ID string to parse.
+ * @returns The parsed LogId object, or undefined if the log ID is missing or empty.
+ */
+export function parseOptionalLogId(logId: string): LogId | undefined {
+  if (!logId) {
+    return undefined;
+  }
+  return parseLogId(logId);
 }
 
 /**
