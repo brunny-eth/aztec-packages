@@ -44,7 +44,7 @@ export class NoirWasmContractCompiler {
     /* eslint-disable camelcase */
     const res = await compile({
       entry_point: noirPackage.getEntryPointPath(),
-      optional_dependencies_set: dependencyResolver.getCrateNames(),
+      optional_dependencies_set: dependencyResolver.getPackageNames(),
       contracts: true,
     });
     /* eslint-enable camelcase */

@@ -32,6 +32,7 @@ export class NoirDependencyResolver {
     for (const [name, config] of Object.entries(noirPackage.getDependencies())) {
       // TODO what happens if more than one package has the same name but different versions?
       if (this.dependencies.has(name)) {
+        this.#log(`skipping already resolved dependency ${name}`);
         continue;
       }
 
@@ -40,6 +41,12 @@ export class NoirDependencyResolver {
           ? await this.#fetchRemoteDependency(config)
           : resolve(noirPackage.getPackagePath(), config.path);
       const dependency = await NoirPackage.new(path, this.#fm);
+
+      if (dependency.getType() !== 'lib') {
+        this.#log(`Non-library package ${name}`, config);
+        throw new Error(`Dependency ${name} is not a library`);
+      }
+
       this.dependencies.set(name, dependency);
 
       await this.recursivelyResolveDependencies(dependency);
@@ -49,7 +56,7 @@ export class NoirDependencyResolver {
   /**
    * Gets the names of the crates in this dependency list
    */
-  public getCrateNames() {
+  public getPackageNames() {
     return [...this.dependencies.keys()];
   }
 
@@ -113,6 +120,7 @@ export class NoirDependencyResolver {
 
   async #fetchTarFromGithub(dependency: Pick<NoirGitDependencyConfig, 'git' | 'tag'>): Promise<string> {
     // TODO support actual git hosts
+    // TODO git authentication
     if (!dependency.git.startsWith('https://github.com')) {
       throw new Error('Only github dependencies are supported');
     }
