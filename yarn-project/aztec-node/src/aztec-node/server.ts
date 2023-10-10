@@ -23,7 +23,7 @@ import {
   ContractData,
   ContractDataSource,
   ExtendedContractData,
-  ExtendedUnencryptedL2Log,
+  GetsUnencryptedLogsResponse,
   L1ToL2MessageAndIndex,
   L1ToL2MessageSource,
   L2Block,
@@ -223,7 +223,7 @@ export class AztecNodeService implements AztecNode {
    * @param filter - The filter to apply to the logs.
    * @returns The requested logs.
    */
-  getUnencryptedLogs(filter: LogFilter): Promise<ExtendedUnencryptedL2Log[]> {
+  getUnencryptedLogs(filter: LogFilter): Promise<GetsUnencryptedLogsResponse> {
     return this.unencryptedLogsSource.getUnencryptedLogs(filter);
   }
 
