@@ -1,7 +1,6 @@
 import { LogFn, createDebugLogger } from '@aztec/foundation/log';
 
 import { compile } from '@noir-lang/noir_wasm';
-import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { NoirCompilationArtifacts } from '../../noir_artifact.js';
@@ -55,25 +54,18 @@ export class NoirWasmContractCompiler {
       }
     });
 
-    /* eslint-disable camelcase */
-    const res = await compile({
-      entry_point: noirPackage.getEntryPointPath(),
-      optional_dependencies_set: dependencyResolver.getPackageNames(),
-      contracts: true,
-    });
-    /* eslint-enable camelcase */
-
-    mkdirSync(join(this.#projectPath, 'target'), { recursive: true });
-    writeFileSync(join(this.#projectPath, 'target', res.name + '.json'), JSON.stringify(res, null, 2));
-
-    return [
-      {
-        contract: {
-          backend: '',
-          functions: res.functions,
-          name: res.name,
-        },
-      },
-    ];
+    try {
+      /* eslint-disable camelcase */
+      const contract = await compile({
+        entry_point: noirPackage.getEntryPointPath(),
+        optional_dependencies_set: dependencyResolver.getPackageNames(),
+        contracts: true,
+      });
+      /* eslint-enable camelcase */
+      return [{ contract }];
+    } catch (err) {
+      this.#log('Error compiling contract', { err: String(err) });
+    }
+    return [];
   }
 }
