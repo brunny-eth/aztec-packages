@@ -1,3 +1,5 @@
+import { LogFn, createDebugLogger } from '@aztec/foundation/log';
+
 import { compile } from '@noir-lang/noir_wasm';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -8,13 +10,21 @@ import { Filemanager } from './filemanager.js';
 import { NoirPackage } from './package.js';
 import { initializeResolver } from './source-resolver.cjs';
 
+/** Compilation options */
+type NoirWasmCompileOptions = {
+  /** Logging function */
+  log?: LogFn;
+};
+
 /**
  * Noir Package Compiler
  */
 export class NoirWasmContractCompiler {
   #projectPath: string;
-  public constructor(projectPath: string) {
+  #log: LogFn;
+  public constructor(projectPath: string, opts: NoirWasmCompileOptions) {
     this.#projectPath = projectPath;
+    this.#log = opts.log ?? createDebugLogger('aztec:noir-compiler:wasm');
   }
 
   /**
@@ -29,8 +39,12 @@ export class NoirWasmContractCompiler {
       throw new Error('This is not a contract project');
     }
 
+    this.#log(`Compiling contract at ${noirPackage.getEntryPointPath()}`);
+
     const dependencyResolver = new NoirDependencyResolver(filemanager);
     await dependencyResolver.recursivelyResolveDependencies(noirPackage);
+
+    this.#log(`Dependencies: ${dependencyResolver.getPackageNames().join(', ')}`);
 
     initializeResolver((sourceId: any) => {
       try {
